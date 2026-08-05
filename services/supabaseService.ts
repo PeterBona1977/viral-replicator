@@ -24,6 +24,12 @@ const performInit = (): SupabaseClient | null => {
     let url = (SUPABASE_URL || "").trim();
     let key = (SUPABASE_ANON_KEY || "").trim();
 
+    const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || (import.meta as any).env?.NEXT_PUBLIC_SUPABASE_URL;
+    const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (envUrl) url = envUrl.trim();
+    if (envKey) key = envKey.trim();
+
     if (typeof window !== 'undefined') {
         const localUrl = localStorage.getItem('sb_url_override');
         const localKey = localStorage.getItem('sb_key_override');
