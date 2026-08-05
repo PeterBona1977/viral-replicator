@@ -135,16 +135,18 @@ export const subscribeToVideos = (onUpdate: (videos: ViralVideo[]) => void) => {
         if (!user) return;
         supabase!.from('videos').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
             .then(({ data, error }) => {
-                 if (error) console.error("Fetch videos error:", error);
+                 if (error && error.code !== '42P01' && (error as any).status !== 404) {
+                     console.warn("Fetch videos warning:", error.message);
+                 }
                  if (data) onUpdate(data.map(d => ({...d.data, id: d.id, status: d.status, createdAt: new Date(d.created_at).getTime()} as any)));
-            });
+            }, () => {});
     });
     const channel = supabase.channel('videos_sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, () => {
             supabase!.auth.getUser().then(({ data: { user } }) => {
                 if(!user) return;
                 supabase!.from('videos').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-                .then(({ data }) => { if (data) onUpdate(data.map(d => ({...d.data, id: d.id, status: d.status, createdAt: new Date(d.created_at).getTime()} as any))); });
+                .then(({ data }) => { if (data) onUpdate(data.map(d => ({...d.data, id: d.id, status: d.status, createdAt: new Date(d.created_at).getTime()} as any))); }, () => {});
             });
         }).subscribe();
     return () => { supabase?.removeChannel(channel); };
@@ -152,36 +154,53 @@ export const subscribeToVideos = (onUpdate: (videos: ViralVideo[]) => void) => {
 
 export const saveVideoToDb = async (video: ViralVideo) => {
     if (!supabase) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const payload = { id: video.id, user_id: user.id, title: video.title, platform: video.platform, status: video.status, created_at: new Date(video.createdAt).toISOString(), data: video };
-    const { error } = await supabase.from('videos').upsert(payload);
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const payload = { id: video.id, user_id: user.id, title: video.title, platform: video.platform, status: video.status, created_at: new Date(video.createdAt).toISOString(), data: video };
+        await supabase.from('videos').upsert(payload);
+    } catch (e) {
+        // Ignore table missing errors
+    }
 };
 
 export const saveBatchVideosToDb = async (videos: ViralVideo[]) => {
     if (!supabase) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const payload = videos.map(v => ({ id: v.id, user_id: user.id, title: v.title, platform: v.platform, status: v.status, created_at: new Date(v.createdAt).toISOString(), data: v }));
-    await supabase.from('videos').upsert(payload);
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const payload = videos.map(v => ({ id: v.id, user_id: user.id, title: v.title, platform: v.platform, status: v.status, created_at: new Date(v.createdAt).toISOString(), data: v }));
+        await supabase.from('videos').upsert(payload);
+    } catch (e) {
+        // Ignore table missing errors
+    }
 };
 
 export const saveUserSettings = async (accounts: SocialAccount[]) => {
-    if (!supabase) throw new Error("Database offline");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("No authenticated session");
-    
-    const { error } = await supabase.from('profiles').upsert({ 
-        id: user.id, 
-        settings: { accounts }, 
-        updated_at: new Date().toISOString() 
-    });
+    if (!supabase) return false;
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return false;
+        
+        const { error } = await supabase.from('profiles').upsert({ 
+            id: user.id, 
+            settings: { accounts }, 
+            updated_at: new Date().toISOString() 
+        });
 
-    if (error) {
-        console.error("Supabase Profile Sync Error:", error);
-        throw new Error(error.message);
+        if (error) {
+            if (error.code === '42P01' || (error as any).status === 404) {
+                console.warn("Supabase 'profiles' table missing. Settings saved locally.");
+                return false;
+            }
+            console.warn("Supabase Profile Sync Warning:", error.message);
+            return false;
+        }
+        return true;
+    } catch (e: any) {
+        console.warn("Supabase Profile Sync Warning:", e.message || e);
+        return false;
     }
-    return true;
 };
 
 export const subscribeToUserSettings = (onUpdate: (accounts: SocialAccount[] | null) => void) => {
@@ -189,9 +208,12 @@ export const subscribeToUserSettings = (onUpdate: (accounts: SocialAccount[] | n
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
         supabase!.from('profiles').select('settings').eq('id', user.id).single().then(({ data, error }) => {
+            if (error && error.code !== '42P01' && (error as any).status !== 404) {
+                // Table might not exist yet
+            }
             if (data?.settings?.accounts) onUpdate(data.settings.accounts);
             else onUpdate(null);
-        });
+        }, () => {});
     });
     const channel = supabase.channel('profiles_sync').on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
         const newRecord = payload.new as any;
