@@ -1,8 +1,9 @@
 
-import { Video, Instagram, Youtube, Database, Target, ShieldCheck, LogOut, RotateCcw, AlertCircle, Link, X, CheckCircle2 } from 'lucide-react';
+import { Video, Instagram, Youtube, Database, Target, ShieldCheck, LogOut, RotateCcw, AlertCircle, Link, X, CheckCircle2, Key, Cpu } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Platform, SocialAccount, UserProfile } from '../types';
 import { isSupabaseInitialized, subscribeToConnectionStatus, updateSupabaseConfig, clearSupabaseConfig, checkTableHealth } from '../services/supabaseService';
+import { getApifyToken, setApifyToken, getApifyActorId, setApifyActorId } from '../services/apifyService';
 
 interface SettingsProps {
   accounts: SocialAccount[];
@@ -20,8 +21,12 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
   const [dbHealth, setDbHealth] = useState({ videos: true, profiles: true });
   const [sbUrl, setSbUrl] = useState('');
   const [sbKey, setSbKey] = useState('');
+  const [apifyTokenInput, setApifyTokenInput] = useState(getApifyToken());
+  const [apifyActorInput, setApifyActorInput] = useState(getApifyActorId());
   const [showDbConfig, setShowDbConfig] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [apifySavedNotice, setApifySavedNotice] = useState(false);
+
 
   useEffect(() => {
       const unsub = subscribeToConnectionStatus((connected) => {
@@ -135,6 +140,69 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
                             </button>
                         </div>
                     ))}
+                </div>
+            </div>
+
+            {/* Apify TikTok Scraper Engine */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
+                            <Cpu className="text-cyan-400" size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-white uppercase tracking-wider">Apify TikTok Scraper</h3>
+                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                                {apifyTokenInput ? "Apify Active - Scraper Connected" : "Optional - Set Token to Enable Direct TikTok Extraction"}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-4 bg-slate-950 p-6 rounded-2xl border border-white/5">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                <Key size={10} className="text-cyan-400" /> Apify API Token
+                            </label>
+                            <input 
+                                type="password"
+                                value={apifyTokenInput} 
+                                onChange={(e) => setApifyTokenInput(e.target.value)} 
+                                placeholder="apify_api_..."
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-cyan-500 outline-none" 
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                <Cpu size={10} className="text-cyan-400" /> TikTok Actor ID
+                            </label>
+                            <input 
+                                value={apifyActorInput} 
+                                onChange={(e) => setApifyActorInput(e.target.value)} 
+                                placeholder="WTs7n5zxJNm20bJXo"
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-cyan-500 outline-none" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                        <p className="text-[9px] text-slate-500 font-medium">
+                            Apify Actor link: <code className="text-cyan-300 font-mono">console.apify.com/actors/{apifyActorInput || 'WTs7n5zxJNm20bJXo'}</code>
+                        </p>
+                        <button 
+                            onClick={() => {
+                                setApifyToken(apifyTokenInput);
+                                setApifyActorId(apifyActorInput);
+                                setApifySavedNotice(true);
+                                setTimeout(() => setApifySavedNotice(false), 3000);
+                            }} 
+                            className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
+                        >
+                            {apifySavedNotice ? <CheckCircle2 size={14} /> : null}
+                            {apifySavedNotice ? 'Saved!' : 'Save Apify Config'}
+                        </button>
+                    </div>
                 </div>
             </div>
 

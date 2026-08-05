@@ -169,13 +169,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onUseLocal, isConfigured
                     {isLoading ? 'Authenticating...' : (isLoginMode ? 'Sign In' : 'Create Account')}
                 </button>
                 
-                <div className="pt-4 text-center">
+                <div className="pt-4 flex flex-col items-center gap-3">
                     <button 
                         type="button"
                         onClick={() => { setIsLoginMode(!isLoginMode); setAuthError(null); }}
                         className="text-slate-500 text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors"
                     >
                         {isLoginMode ? "Need an account? Sign Up" : "Have an account? Login"}
+                    </button>
+                    
+                    <div className="w-full border-t border-white/5 my-1" />
+
+                    <button
+                        type="button"
+                        onClick={onUseLocal}
+                        className="w-full py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-purple-300 border border-purple-500/20 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg"
+                    >
+                        <Zap size={14} className="text-purple-400" fill="currentColor" />
+                        Continue in Offline / Local Mode
                     </button>
                 </div>
             </form>
@@ -201,6 +212,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onUseLocal, isConfigured
                         {isRetrying ? 'Re-checking...' : 'Verify constants.ts'}
                     </button>
                 </div>
+
+                <button
+                    type="button"
+                    onClick={onUseLocal}
+                    className="w-full py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-[11px] uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-900/30"
+                >
+                    <Zap size={16} fill="white" />
+                    Bypass & Use Local Mode
+                </button>
 
                 <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5 space-y-3">
                     <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Setup Instructions</p>

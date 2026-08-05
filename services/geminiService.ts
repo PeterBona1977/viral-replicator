@@ -1,6 +1,7 @@
 
 import { Platform, VideoStatus, ViralVideo, ScannerFilters, SUPPORTED_COUNTRIES, SocialAccount, PublishingMetadata, SearchResult, SearchAudit, SearchSource } from "../types";
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { fetchTikTokTrendsViaApify, isApifyConfigured } from "./apifyService";
 
 const withRetry = async <T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
     try {
@@ -18,12 +19,40 @@ const withRetry = async <T>(operation: () => Promise<T>, retries = 3, delay = 10
 };
 
 export const scanForViralTrends = async (filters: ScannerFilters, accounts: SocialAccount[]): Promise<SearchResult> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const countryCode = filters.countries[0];
     const primaryCountry = SUPPORTED_COUNTRIES.find(c => c.code === countryCode)?.name || 'Global';
-    
-    const platformQuery = filters.platforms.join(", ");
     const keywords = filters.keywords || "currently trending viral videos";
+
+    // 1. Check if TikTok is in selected platforms and Apify is configured
+    if (filters.platforms.includes(Platform.TikTok) && isApifyConfigured()) {
+        try {
+            const apifyVideos = await fetchTikTokTrendsViaApify(filters);
+            if (apifyVideos && apifyVideos.length > 0) {
+                const audit: SearchAudit = {
+                    operationLog: [
+                        "Apify TikTok Actor scraper invoked",
+                        `Fetched ${apifyVideos.length} real TikTok videos from Apify`,
+                        `Targeting ${primaryCountry} region tags & "${keywords}"`,
+                        "Extracted live metrics, creator handles, and viral scores"
+                    ],
+                    strategicSummary: `Successfully extracted ${apifyVideos.length} live TikTok social vectors via Apify Actor scraper.`,
+                    regionInsight: `Live engagement in ${primaryCountry} for key search term "${keywords}".`,
+                    replicationPlaybook: { 
+                        hookAdvice: "Fast visual hook within first 1.5s with text overlay.", 
+                        audioStrategy: "Trending TikTok sound sync with 0.8s beat transitions.", 
+                        visualDirection: "Dynamic vertical 9:16 video frame with high clarity." 
+                    }
+                };
+                return { videos: apifyVideos, audit };
+            }
+        } catch (apifyErr: any) {
+            console.warn("Apify TikTok Scraper failed, falling back to Gemini Search Grounding:", apifyErr);
+        }
+    }
+
+    // 2. Fallback / Default: Gemini Grounded Search Discovery
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const platformQuery = filters.platforms.join(", ");
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     

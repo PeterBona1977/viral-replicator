@@ -37,7 +37,7 @@ const performInit = (): SupabaseClient | null => {
         try {
             return createClient(url, key, {
                 auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-                global: { fetch: (...args) => fetch(...args) }
+                global: { fetch: (input, init) => fetch(input, init) }
             });
         } catch (e) {
             console.error("Supabase Setup Error:", e);
@@ -188,7 +188,8 @@ export const subscribeToUserSettings = (onUpdate: (accounts: SocialAccount[] | n
         });
     });
     const channel = supabase.channel('profiles_sync').on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
-        if (payload.new && payload.new.settings) onUpdate(payload.new.settings.accounts);
+        const newRecord = payload.new as any;
+        if (newRecord && newRecord.settings) onUpdate(newRecord.settings.accounts);
     }).subscribe();
     return () => { supabase?.removeChannel(channel); };
 };
