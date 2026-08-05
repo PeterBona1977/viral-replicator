@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ViralReplicator.ai</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom Scrollbar for sleek look */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1e1e2e;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+        border: 1px solid #1e1e2e;
+      }
+      @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
+        50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.6); }
+      }
+      .animate-glow {
+        animation: pulse-glow 2s infinite;
+      }
+      /* Mobile Safe Area Support */
+      .safe-area-pb {
+        padding-bottom: env(safe-area-inset-bottom, 20px);
+      }
+    </style>
+  </head>
+  <body class="bg-slate-950 text-white antialiased overflow-hidden">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
