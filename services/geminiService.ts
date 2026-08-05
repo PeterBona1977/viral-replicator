@@ -3,6 +3,23 @@ import { Platform, VideoStatus, ViralVideo, ScannerFilters, SUPPORTED_COUNTRIES,
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { fetchTikTokTrendsViaApify, isApifyConfigured } from "./apifyService";
 
+const getGeminiApiKey = (): string => {
+    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                   (import.meta as any).env?.GEMINI_API_KEY || 
+                   (import.meta as any).env?.EXPO_PUBLIC_API_KEY ||
+                   process.env.GEMINI_API_KEY || 
+                   process.env.API_KEY ||
+                   process.env.EXPO_PUBLIC_API_KEY;
+    if (envKey && typeof envKey === 'string' && envKey.trim()) {
+        return envKey.trim();
+    }
+    if (typeof window !== 'undefined') {
+        const local = localStorage.getItem('gemini_api_key_override');
+        if (local && local.trim()) return local.trim();
+    }
+    return "AIzaSyD6MJG9y3X81Q-75WLsXfIxhqw3WvML2I8";
+};
+
 const withRetry = async <T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
     try {
         return await operation();
@@ -51,7 +68,7 @@ export const scanForViralTrends = async (filters: ScannerFilters, accounts: Soci
     }
 
     // 2. Fallback / Default: Gemini Grounded Search Discovery
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
     const platformQuery = filters.platforms.join(", ");
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -189,7 +206,7 @@ const formatViews = (num: number): string => {
 };
 
 export const analyzeViralTrend = async (description: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
   const res = await ai.models.generateContent({ 
       model: 'gemini-3-pro-preview', 
       contents: `Analyze this viral hook for replication: ${description}`,
@@ -199,7 +216,7 @@ export const analyzeViralTrend = async (description: string): Promise<string> =>
 };
 
 export const createCinematicPrompt = async (analysis: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
   const response = await ai.models.generateContent({ 
       model: 'gemini-3-pro-preview', 
       contents: `Generate a Veo video prompt for this trend: ${analysis}`,
@@ -213,7 +230,7 @@ export const generateReplication = async (prompt: string): Promise<string> => {
 };
 
 export const generateSocialMetadata = async (video: ViralVideo, platforms: Platform[]): Promise<PublishingMetadata> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Generate viral caption and hashtags for: ${video.title}`,
