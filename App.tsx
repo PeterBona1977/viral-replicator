@@ -160,15 +160,36 @@ const App: React.FC = () => {
     }
   };
 
+  const [isLocalGuest, setIsLocalGuest] = useState<boolean>(() => {
+    return localStorage.getItem('viralrep_local_mode') === 'true';
+  });
+
+  const handleUseLocal = () => {
+    localStorage.setItem('viralrep_local_mode', 'true');
+    setIsLocalGuest(true);
+    setShowAuth(false);
+    if (!user) {
+      setUser({ uid: 'local_guest', displayName: 'Local Guest', email: null, photoURL: null });
+    }
+  };
+
+  const handleLogout = async () => {
+    localStorage.removeItem('viralrep_local_mode');
+    setIsLocalGuest(false);
+    await logoutUser();
+    setUser(null);
+    setShowAuth(true);
+  };
+
   if (!authInitialized) return <div className="h-screen w-full bg-slate-950 flex items-center justify-center"><Sparkles className="animate-spin text-purple-500" /></div>;
-  if (showAuth || !user) return <AuthScreen onUseLocal={() => setShowAuth(false)} isConfigured={dbConnected} />;
+  if (showAuth || (!user && !isLocalGuest)) return <AuthScreen onUseLocal={handleUseLocal} isConfigured={dbConnected} />;
 
   const pendingVideos = videos.filter(v => v.status === VideoStatus.PendingApproval);
   const scannedVideos = videos.filter(v => v.status === VideoStatus.Scanned);
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-white font-sans overflow-hidden">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} pendingCount={pendingVideos.length} user={user} onLogout={async () => { await logoutUser(); setUser(null); }} onConnect={() => setShowAuth(true)} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} pendingCount={pendingVideos.length} user={user} onLogout={handleLogout} onConnect={() => setShowAuth(true)} />
       <main className="flex-1 flex flex-col min-w-0 h-full relative">
         <header className="h-16 flex-none border-b border-slate-800 flex items-center justify-between px-6 bg-slate-950/50 backdrop-blur z-30">
            <div className="flex items-center gap-3">
@@ -185,7 +206,7 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-hidden relative">
             {activeTab === 'dashboard' && <DashboardStats videos={videos} />}
-            {activeTab === 'settings' && <Settings accounts={accounts} onAccountAction={handleAccountAction} apiKeyVerified={true} onConnectApiKey={() => {}} onLogout={async () => { await logoutUser(); setUser(null); }} user={user} />}
+            {activeTab === 'settings' && <Settings accounts={accounts} onAccountAction={handleAccountAction} apiKeyVerified={true} onConnectApiKey={() => {}} onLogout={handleLogout} user={user} />}
             {activeTab === 'scanner' && (
                 <div className="p-6 h-full overflow-y-auto pb-24 no-scrollbar">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
