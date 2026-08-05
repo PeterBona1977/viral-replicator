@@ -213,11 +213,11 @@ const App: React.FC = () => {
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Viral Discovery</h2>
-                                <div className="bg-purple-600/20 text-purple-400 px-3 py-1 rounded-full border border-purple-500/30 text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                                    <BrainCircuit size={12} /> Gemini-3 Neural Scan
+                                <div className="bg-cyan-600/20 text-cyan-400 px-3 py-1 rounded-full border border-cyan-500/30 text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                                    <BrainCircuit size={12} /> Apify Extraction Engine
                                 </div>
                             </div>
-                            <p className="text-xs text-slate-500 font-medium mt-1">Grounded in Live Search Data. Identifies high-velocity replication patterns.</p>
+                            <p className="text-xs text-slate-500 font-medium mt-1">Grounded in live social graph data via Apify Actor. Identifies high-velocity replication patterns.</p>
                         </div>
                         <div className="flex items-center gap-3 w-full md:w-auto">
                             {!isScanning ? (
