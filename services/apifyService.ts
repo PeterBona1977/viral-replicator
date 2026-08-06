@@ -1,4 +1,4 @@
-import { ScannerFilters, Platform, VideoStatus, ViralVideo } from '../types';
+import { ScannerFilters, Platform, VideoStatus, ViralVideo, TimeRange, SUPPORTED_COUNTRIES } from '../types';
 import { APIFY_API_TOKEN, APIFY_TIKTOK_ACTOR_ID } from '../constants';
 
 const TOKEN_KEY = 'apify_token_override';
@@ -59,22 +59,60 @@ export const fetchTikTokTrendsViaApify = async (filters: ScannerFilters): Promis
   }
 
   const actorId = getApifyActorId();
-  const searchKeyword = filters.keywords ? filters.keywords.trim() : "viral trend";
+  const rawKeyword = filters.keywords ? filters.keywords.trim() : "";
+  const countryCode = filters.countries[0] || 'US';
+  const countryObj = SUPPORTED_COUNTRIES.find(c => c.code === countryCode);
+  const countryName = countryObj ? countryObj.name : 'United States';
   const count = filters.resultCount || 8;
 
-  // Payload tailored for coregent/tiktok-viral-video-finder & standard TikTok scrapers
+  // 1. Map Time Window filters to Apify parameters
+  let timeFilterKey = "now";
+  let maxDaysOld = 30;
+  if (filters.timeRange === TimeRange.Today) {
+    timeFilterKey = "24h";
+    maxDaysOld = 2;
+  } else if (filters.timeRange === TimeRange.Week) {
+    timeFilterKey = "7d";
+    maxDaysOld = 7;
+  } else if (filters.timeRange === TimeRange.Month) {
+    timeFilterKey = "30d";
+    maxDaysOld = 30;
+  } else if (filters.timeRange === TimeRange.Now) {
+    timeFilterKey = "now";
+    maxDaysOld = 3;
+  }
+
+  // 2. Build region and keyword search queries
+  const baseKeyword = rawKeyword || "trending viral";
+  const geoQuery = `${baseKeyword} ${countryName}`;
+  const searchQueriesList = [geoQuery, baseKeyword];
+  const hashtagClean = baseKeyword.replace(/\s+/g, '');
+
+  // 3. Payload with full location, proxy, and time window parameters
   const inputPayload = {
-    searchKeywords: [searchKeyword],
-    searchQueries: [searchKeyword],
-    keywords: [searchKeyword],
-    hashtags: [searchKeyword.replace(/\s+/g, '')],
-    maxResults: count,
-    resultsPerPage: count,
-    maxItems: count,
+    searchKeywords: searchQueriesList,
+    searchQueries: searchQueriesList,
+    keywords: searchQueriesList,
+    hashtags: [hashtagClean],
+    country: countryCode,
+    countryCode: countryCode,
+    location: countryName,
+    region: countryCode,
+    dateFilter: timeFilterKey,
+    publishTime: timeFilterKey,
+    publishTimeWindow: timeFilterKey.toUpperCase(),
+    maxDaysOld: maxDaysOld,
+    maxResults: count * 2,
+    resultsPerPage: count * 2,
+    maxItems: count * 2,
     searchSection: "",
     shouldDownloadVideos: false,
     shouldDownloadCovers: false,
-    shouldDownloadSubtitles: false
+    shouldDownloadSubtitles: false,
+    proxyConfig: {
+      useApifyProxy: true,
+      apifyProxyCountry: countryCode
+    }
   };
 
   const url = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=60`;
@@ -97,38 +135,38 @@ export const fetchTikTokTrendsViaApify = async (filters: ScannerFilters): Promis
     return [];
   }
 
-  return items.map((item: any, index: number) => {
+  const mappedVideos: ViralVideo[] = items.map((item: any, index: number) => {
     const viewsNum = item.playCount || item.views || item.stats?.playCount || item.statistics?.playCount || Math.floor(Math.random() * 800000) + 200000;
     const likesNum = item.diggCount || item.likes || item.stats?.diggCount || item.statistics?.diggCount || Math.floor(viewsNum * 0.12);
     const videoUrl = item.webVideoUrl || item.videoUrl || item.url || item.link || `https://www.tiktok.com/@${item.authorMeta?.name || 'user'}/video/${item.id || index}`;
     const authorHandle = item.authorMeta?.name || item.authorMeta?.nickName || item.author?.uniqueId || item.username || 'tiktok_creator';
-    const titleText = item.text || item.title || item.desc || `Viral TikTok: ${searchKeyword}`;
+    const titleText = item.text || item.title || item.desc || `Viral TikTok (${countryName}): ${baseKeyword}`;
     const thumb = item.covers?.origin || item.covers?.default || item.cover || item.thumbnailUrl || item.thumbnail || `https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=500&auto=format&fit=crop`;
 
     return {
       id: `apify_${item.id || item.itemId || Math.random().toString(36).substr(2, 9)}`,
-      title: titleText.length > 80 ? titleText.substring(0, 80) + '...' : titleText,
+      title: titleText,
       description: titleText,
       originalUrl: videoUrl,
       thumbnailUrl: thumb,
       platform: Platform.TikTok,
       viralScore: Math.min(99, Math.max(75, Math.floor(Math.log10(viewsNum || 1000) * 15))),
       views: formatViews(viewsNum),
-      country: filters.countries[0] || 'US',
+      country: countryCode,
       originalPostDate: item.createTimeISO ? item.createTimeISO.split('T')[0] : new Date().toISOString().split('T')[0],
       status: VideoStatus.Scanned,
       createdAt: Date.now(),
       searchSources: [
         {
-          title: `Apify TikTok Actor (${actorId})`,
+          title: `Apify Scraper (${actorId} - ${countryCode} / ${filters.timeRange})`,
           uri: videoUrl
         }
       ],
       researchInsights: {
-        hookType: "Apify Verified TikTok Velocity",
-        audienceSegment: "TikTok Organic Graph",
+        hookType: `Apify Verified (${countryCode} - ${filters.timeRange})`,
+        audienceSegment: `${countryName} Social Graph`,
         commercialIntent: "High",
-        viralVelocity: "Explosive",
+        viralVelocity: filters.timeRange === TimeRange.Today ? "Explosive (24h)" : "High Velocity",
         creatorHandle: authorHandle,
         likeCount: formatViews(likesNum),
         commentCount: formatViews(item.commentCount || item.stats?.commentCount || 0),
@@ -136,4 +174,6 @@ export const fetchTikTokTrendsViaApify = async (filters: ScannerFilters): Promis
       }
     };
   });
+
+  return mappedVideos.slice(0, count);
 };
