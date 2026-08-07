@@ -147,6 +147,24 @@ const App: React.FC = () => {
     }
   };
 
+  const handleInitiateReplication = (videoToRecreate: ViralVideo) => {
+    const updated = videos.map(v => v.id === videoToRecreate.id ? { ...v, status: VideoStatus.PendingApproval } : v);
+    setVideos(updated);
+    showNotification(`Added "${videoToRecreate.title.slice(0, 25)}..." to Approval Queue.`, 'success');
+  };
+
+  const handleApproveVideo = (id: string, metadata: any) => {
+    const updated = videos.map(v => v.id === id ? { ...v, status: VideoStatus.Posted, publishingMetadata: metadata } : v);
+    setVideos(updated);
+    showNotification(`Post Committed & Scheduled to Destination Feeds!`, 'success');
+  };
+
+  const handleRejectVideo = (id: string) => {
+    const updated = videos.map(v => v.id === id ? { ...v, status: VideoStatus.Rejected } : v);
+    setVideos(updated);
+    showNotification(`Item discarded from Queue.`, 'info');
+  };
+
   const handleAccountAction = async (p: Platform, u: string | null) => {
     // 1. Update local state immediately
     const updatedAccounts = accounts.map(a => a.platform === p ? { ...a, username: u || '', connected: !!u } : a);
@@ -257,7 +275,7 @@ const App: React.FC = () => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                         {scannedVideos.map(video => (
-                            <ViralCard key={video.id} video={video} onRecreate={() => {}} onPlay={setPlayingVideo} />
+                            <ViralCard key={video.id} video={video} onRecreate={handleInitiateReplication} onPlay={setPlayingVideo} />
                         ))}
                         {scannedVideos.length === 0 && !isScanning && (
                             <div className="col-span-full py-20 flex flex-col items-center text-center">
@@ -285,7 +303,7 @@ const App: React.FC = () => {
                     )}
                 </div>
             )}
-            {activeTab === 'approval' && <ApprovalQueue videos={pendingVideos} connectedAccounts={accounts} onApprove={(id, meta) => {}} onReject={(id) => {}} />}
+            {activeTab === 'approval' && <ApprovalQueue videos={pendingVideos} connectedAccounts={accounts} onApprove={handleApproveVideo} onReject={handleRejectVideo} />}
         </div>
         
         <VideoModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
