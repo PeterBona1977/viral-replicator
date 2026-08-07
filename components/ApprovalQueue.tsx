@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Share2, AlertTriangle, Eye, Play, Loader2, CheckCircle2, Sparkles, Hash, MessageSquare, ArrowRight } from 'lucide-react';
 import { VideoStatus, ViralVideo, SocialAccount, Platform, PublishingMetadata } from '../types';
-import { generateSocialMetadata } from '../services/geminiService';
+import { generateSocialMetadata } from '../services/metadataService';
 
 interface ApprovalQueueProps {
   videos: ViralVideo[];

@@ -11,9 +11,7 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || env.EXPO_PUBLIC_API_KEY || 'AIzaSyD6MJG9y3X81Q-75WLsXfIxhqw3WvML2I8'),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || env.EXPO_PUBLIC_API_KEY || 'AIzaSyD6MJG9y3X81Q-75WLsXfIxhqw3WvML2I8'),
-        'process.env.EXPO_PUBLIC_API_KEY': JSON.stringify(env.EXPO_PUBLIC_API_KEY || 'AIzaSyD6MJG9y3X81Q-75WLsXfIxhqw3WvML2I8')
+        'process.env.APIFY_API_TOKEN': JSON.stringify(env.VITE_APIFY_API_TOKEN || env.APIFY_API_TOKEN || '')
       },
       resolve: {
         alias: {

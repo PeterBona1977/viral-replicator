@@ -6,7 +6,7 @@ import { Platform, VideoStatus, ViralVideo, FirebaseConfig } from './types';
 export const SUPABASE_URL = "https://khxqykyascnhybgucgxr.supabase.co"; 
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtoeHF5a3lhc2NuaHliZ3VjZ3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MDIwNDYsImV4cCI6MjA4MjA3ODA0Nn0.1ugO4r62szPQVHcb7-_zqvvJpDBakT08Q39WQ-5zlSM"; 
 
-export const APIFY_API_TOKEN = "apify_api_Qzyi0vxrFzO0u59hBkRv0SeL8PTgn91zkiEI"; 
+export const APIFY_API_TOKEN = ""; 
 export const APIFY_TIKTOK_ACTOR_ID = "coregent/tiktok-viral-video-finder"; 
 
 export const MOCK_VIRAL_VIDEOS: ViralVideo[] = [];

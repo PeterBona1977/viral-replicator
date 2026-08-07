@@ -150,6 +150,13 @@ export interface ScannerFilters {
   keywords: string;
 }
 
+export interface SavedSearch {
+  id: string;
+  name: string;
+  filters: ScannerFilters;
+  createdAt: number;
+}
+
 export const SUPPORTED_COUNTRIES = [
   { code: 'US', name: 'United States' },
   { code: 'GB', name: 'United Kingdom' },

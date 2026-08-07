@@ -10,7 +10,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { DiscoveryAuditPopup } from './components/DiscoveryAuditPopup';
 import { ScannerFiltersPanel } from './components/ScannerFilters';
 import { ViralVideo, VideoStatus, Platform, SocialAccount, UserProfile, ScannerFilters, TimeRange } from './types';
-import { scanForViralTrends } from './services/geminiService';
+import { runSocialScrapers } from './services/scrapers';
 import { 
     subscribeToVideos, 
     saveBatchVideosToDb, 
@@ -21,7 +21,7 @@ import {
     isSupabaseInitialized, 
     subscribeToConnectionStatus
 } from './services/supabaseService';
-import { RefreshCw, Sparkles, XCircle, Terminal, Command, Globe, BrainCircuit, AlertCircle } from 'lucide-react';
+import { RefreshCw, Sparkles, XCircle, Terminal, Command, Globe, BrainCircuit, AlertCircle, FileText } from 'lucide-react';
 
 const VIDEOS_STORAGE_KEY = 'viralrep_videos_local';
 const FILTERS_STORAGE_KEY = 'viralrep_filters_local';
@@ -67,6 +67,10 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
   const [playingVideo, setPlayingVideo] = useState<ViralVideo | null>(null);
   const [currentAudit, setCurrentAudit] = useState<any | null>(null);
+  const [savedAudit, setSavedAudit] = useState<any | null>(() => {
+    const saved = localStorage.getItem('viralrep_last_audit');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [scanLogs, setScanLogs] = useState<string[]>([]);
 
   const scanIdRef = useRef<number | null>(null);
@@ -116,10 +120,10 @@ const App: React.FC = () => {
     const currentScanId = Date.now();
     scanIdRef.current = currentScanId;
     setIsScanning(true);
-    setScanLogs(["Activating Gemini Search tool...", "Grounding in live TikTok and YouTube results...", "Extracting velocity data..."]);
+    setScanLogs(["Activating Social Scraper Engine...", "Grounding in live platform data...", "Extracting velocity data..."]);
     
     try {
-        const result = await scanForViralTrends(scanFilters, accounts);
+        const result = await runSocialScrapers(scanFilters);
         if (scanIdRef.current !== currentScanId) return;
 
         setScanLogs(prev => [...prev, `Found ${result.videos.length} verified trends.`, "Synthesizing research audit..."]);
@@ -129,6 +133,8 @@ const App: React.FC = () => {
             setVideos(newVideos);
             if (dbConnected && user) await saveBatchVideosToDb(result.videos);
             setCurrentAudit(result.audit);
+            setSavedAudit(result.audit);
+            localStorage.setItem('viralrep_last_audit', JSON.stringify(result.audit));
             showNotification(`${result.videos.length} Trends Discovered.`, 'success');
         } else {
             showNotification("No trends found with current filters.", 'info');
@@ -220,6 +226,14 @@ const App: React.FC = () => {
                             <p className="text-xs text-slate-500 font-medium mt-1">Grounded in live social graph data via Apify Actor. Identifies high-velocity replication patterns.</p>
                         </div>
                         <div className="flex items-center gap-3 w-full md:w-auto">
+                            {savedAudit && (
+                                <button 
+                                  onClick={() => setCurrentAudit(savedAudit)} 
+                                  className="px-6 py-4 rounded-2xl bg-cyan-950/60 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/60 transition-all font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg"
+                                >
+                                    <FileText size={16} /> Ver Relatório da Pesquisa
+                                </button>
+                            )}
                             {!isScanning ? (
                                 <button onClick={scanForViral} className="px-8 py-4 rounded-2xl bg-white text-black flex items-center justify-center gap-3 font-black shadow-xl active:scale-95 transition-all text-xs uppercase tracking-widest">
                                     <RefreshCw size={18} /> Initiate Search
@@ -241,7 +255,7 @@ const App: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                         {scannedVideos.map(video => (
                             <ViralCard key={video.id} video={video} onRecreate={() => {}} onPlay={setPlayingVideo} />
                         ))}

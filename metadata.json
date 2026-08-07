@@ -1,10 +1,10 @@
 {
   "name": "ViralReplicator.ai",
-  "description": "An AI-powered studio that scans social trends and generates identical viral video replications using Google Gemini 2.5 and Veo.",
+  "description": "A high-performance studio that scans social trends and generates viral video replications using dedicated social network scrapers.",
   "requestFramePermissions": [
     "geolocation"
   ],
   "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+    "MAJOR_CAPABILITY_MULTI_PLATFORM_SOCIAL_SCRAPER"
   ]
 }
