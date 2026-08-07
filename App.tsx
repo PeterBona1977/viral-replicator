@@ -267,6 +267,22 @@ const App: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {scannedVideos.length > 0 && !isScanning && (
+                        <div className="mt-12 flex justify-center">
+                            <button
+                                onClick={async () => {
+                                  const expandedCount = (scanFilters.resultCount || 8) + 8;
+                                  const updatedFilters = { ...scanFilters, resultCount: expandedCount };
+                                  setScanFilters(updatedFilters);
+                                  await scanForViral();
+                                }}
+                                className="px-10 py-5 bg-purple-600 hover:bg-purple-500 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 active:scale-95 transition-all border border-purple-400/30"
+                            >
+                                <RefreshCw size={18} /> Carregar Mais Resultados (+8 Vídeos)
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
             {activeTab === 'approval' && <ApprovalQueue videos={pendingVideos} connectedAccounts={accounts} onApprove={(id, meta) => {}} onReject={(id) => {}} />}

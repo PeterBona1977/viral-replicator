@@ -216,6 +216,32 @@ export const ScannerFiltersPanel: React.FC<ScannerFiltersPanelProps> = ({ filter
               })}
           </div>
         </div>
+
+        {/* Result Count Selector */}
+        <div className="space-y-4 md:col-span-2 pt-4 border-t border-slate-800/50">
+          <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">
+            <Activity size={14} className="text-purple-400" /> Quantidade de Resultados por Pesquisa
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {[6, 12, 24, 50, 100].map((num) => {
+              const isSelected = (filters.resultCount || 8) === num;
+              return (
+                <button
+                  key={num}
+                  onClick={() => !disabled && onChange({ ...filters, resultCount: num })}
+                  disabled={disabled}
+                  className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                    isSelected
+                      ? 'bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-900/30'
+                      : 'bg-black/20 text-slate-500 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  {num} Vídeos
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Modal for Naming Saved Search */}
