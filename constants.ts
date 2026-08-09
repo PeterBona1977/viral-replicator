@@ -8,6 +8,7 @@ export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const APIFY_API_TOKEN = ""; 
 export const APIFY_TIKTOK_ACTOR_ID = "coregent/tiktok-viral-video-finder"; 
+export const APIFY_YOUTUBE_ACTOR_ID = "8frL5jLRMkNtPuwIo"; 
 
 export const MOCK_VIRAL_VIDEOS: ViralVideo[] = [];
 

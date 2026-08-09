@@ -1,8 +1,9 @@
 import { ScannerFilters, Platform, VideoStatus, ViralVideo, TimeRange, SUPPORTED_COUNTRIES } from '../types';
-import { APIFY_API_TOKEN, APIFY_TIKTOK_ACTOR_ID } from '../constants';
+import { APIFY_API_TOKEN, APIFY_TIKTOK_ACTOR_ID, APIFY_YOUTUBE_ACTOR_ID } from '../constants';
 
 const TOKEN_KEY = 'apify_token_override';
 const ACTOR_KEY = 'apify_actor_override';
+const YOUTUBE_ACTOR_KEY = 'apify_youtube_actor_override';
 
 export const getApifyToken = (): string => {
   if (typeof window !== 'undefined') {
@@ -38,6 +39,24 @@ export const setApifyActorId = (actorId: string): void => {
       localStorage.setItem(ACTOR_KEY, actorId.trim());
     } else {
       localStorage.removeItem(ACTOR_KEY);
+    }
+  }
+};
+
+export const getApifyYouTubeActorId = (): string => {
+  if (typeof window !== 'undefined') {
+    const local = localStorage.getItem(YOUTUBE_ACTOR_KEY);
+    if (local) return local.trim();
+  }
+  return (APIFY_YOUTUBE_ACTOR_ID || '8frL5jLRMkNtPuwIo').trim();
+};
+
+export const setApifyYouTubeActorId = (actorId: string): void => {
+  if (typeof window !== 'undefined') {
+    if (actorId) {
+      localStorage.setItem(YOUTUBE_ACTOR_KEY, actorId.trim());
+    } else {
+      localStorage.removeItem(YOUTUBE_ACTOR_KEY);
     }
   }
 };

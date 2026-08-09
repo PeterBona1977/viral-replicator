@@ -3,7 +3,7 @@ import { Video, Instagram, Youtube, Database, Target, ShieldCheck, LogOut, Rotat
 import React, { useState, useEffect } from 'react';
 import { Platform, SocialAccount, UserProfile } from '../types';
 import { isSupabaseInitialized, subscribeToConnectionStatus, updateSupabaseConfig, clearSupabaseConfig, checkTableHealth } from '../services/supabaseService';
-import { getApifyToken, setApifyToken, getApifyActorId, setApifyActorId } from '../services/apifyService';
+import { getApifyToken, setApifyToken, getApifyActorId, setApifyActorId, getApifyYouTubeActorId, setApifyYouTubeActorId } from '../services/apifyService';
 
 interface SettingsProps {
   accounts: SocialAccount[];
@@ -23,6 +23,7 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
   const [sbKey, setSbKey] = useState('');
   const [apifyTokenInput, setApifyTokenInput] = useState(getApifyToken());
   const [apifyActorInput, setApifyActorInput] = useState(getApifyActorId());
+  const [apifyYtActorInput, setApifyYtActorInput] = useState(getApifyYouTubeActorId());
   const [showDbConfig, setShowDbConfig] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [apifySavedNotice, setApifySavedNotice] = useState(false);
@@ -143,7 +144,7 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
                 </div>
             </div>
 
-            {/* Apify TikTok Scraper Engine */}
+            {/* Apify Scraper Engine */}
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
@@ -151,16 +152,16 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
                             <Cpu className="text-cyan-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-black text-white uppercase tracking-wider">Apify TikTok Scraper</h3>
+                            <h3 className="text-lg font-black text-white uppercase tracking-wider">Apify Scraper Engine</h3>
                             <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
-                                {apifyTokenInput ? "Apify Active - Scraper Connected" : "Optional - Set Token to Enable Direct TikTok Extraction"}
+                                {apifyTokenInput ? "Apify Active - Live Social Graph Scraping Enabled" : "Optional - Set Token to Enable Direct Social Media Extraction"}
                             </p>
                         </div>
                     </div>
                 </div>
 
                 <div className="space-y-4 bg-slate-950 p-6 rounded-2xl border border-white/5">
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-3">
                         <div>
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                                 <Key size={10} className="text-cyan-400" /> Apify API Token
@@ -180,20 +181,32 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
                             <input 
                                 value={apifyActorInput} 
                                 onChange={(e) => setApifyActorInput(e.target.value)} 
-                                placeholder="WTs7n5zxJNm20bJXo"
+                                placeholder="coregent/tiktok-viral-video-finder"
                                 className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-cyan-500 outline-none" 
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                <Cpu size={10} className="text-red-400" /> YouTube Actor ID
+                            </label>
+                            <input 
+                                value={apifyYtActorInput} 
+                                onChange={(e) => setApifyYtActorInput(e.target.value)} 
+                                placeholder="8frL5jLRMkNtPuwIo"
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-red-500 outline-none" 
                             />
                         </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
                         <p className="text-[9px] text-slate-500 font-medium">
-                            Apify Actor link: <code className="text-cyan-300 font-mono">console.apify.com/actors/{apifyActorInput || 'WTs7n5zxJNm20bJXo'}</code>
+                            Apify YT Actor link: <code className="text-cyan-300 font-mono">console.apify.com/actors/{apifyYtActorInput || '8frL5jLRMkNtPuwIo'}</code>
                         </p>
                         <button 
                             onClick={() => {
                                 setApifyToken(apifyTokenInput);
                                 setApifyActorId(apifyActorInput);
+                                setApifyYouTubeActorId(apifyYtActorInput);
                                 setApifySavedNotice(true);
                                 setTimeout(() => setApifySavedNotice(false), 3000);
                             }} 

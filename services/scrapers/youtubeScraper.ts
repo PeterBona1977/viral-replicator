@@ -1,6 +1,6 @@
 import { Platform, ScannerFilters, ViralVideo, VideoStatus, TimeRange, SUPPORTED_COUNTRIES } from '../../types';
 import { SocialScraper, ScraperResult } from './types';
-import { getApifyToken } from '../apifyService';
+import { getApifyToken, getApifyYouTubeActorId } from '../apifyService';
 
 const formatViews = (num: number): string => {
   if (!num || isNaN(num)) return '0';
@@ -23,62 +23,92 @@ export const youtubeScraper: SocialScraper = {
     const countryName = countryObj ? countryObj.name : 'United States';
     const count = filters.resultCount || 8;
     const token = getApifyToken();
+    const actorId = getApifyYouTubeActorId();
+
+    let timeFilterKey = "now";
+    if (filters.timeRange === TimeRange.Today) {
+      timeFilterKey = "24h";
+    } else if (filters.timeRange === TimeRange.Week) {
+      timeFilterKey = "7d";
+    } else if (filters.timeRange === TimeRange.Month) {
+      timeFilterKey = "30d";
+    }
 
     const logs: string[] = [
-      `YouTube Scraper engine initiated`,
+      `YouTube Scraper engine initiated (Actor: ${actorId})`,
       `Target Region: ${countryName} (${countryCode}) | Query: "${rawKeyword}"`,
       `Time Window: ${filters.timeRange}`
     ];
 
     if (token) {
       try {
-        const actorId = "apify/youtube-scraper";
         const url = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=60`;
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            searchKeywords: `${rawKeyword} shorts #shorts ${countryName}`,
-            maxResults: count,
-            country: countryCode
+            searchKeywords: [rawKeyword, `${rawKeyword} shorts`],
+            searchQueries: [rawKeyword],
+            keywords: [rawKeyword],
+            query: rawKeyword,
+            maxResults: count * 2,
+            maxItems: count * 2,
+            country: countryCode,
+            countryCode: countryCode,
+            dateFilter: timeFilterKey,
+            publishTime: timeFilterKey
           })
         });
 
         if (response.ok) {
           const items = await response.json();
           if (Array.isArray(items) && items.length > 0) {
-            logs.push(`YouTube Apify Scraper returned ${items.length} live results.`);
+            logs.push(`YouTube Apify Scraper (${actorId}) returned ${items.length} live results.`);
             const apifyVideos: ViralVideo[] = items.map((item: any, idx: number) => {
-              const viewsNum = item.viewCount || item.views || Math.floor(Math.random() * 900000) + 100000;
-              const likesNum = item.likes || Math.floor(viewsNum * 0.08);
+              const viewsNum = item.viewCount || item.views || item.statistics?.viewCount || Math.floor(Math.random() * 900000) + 100000;
+              const likesNum = item.likeCount || item.likes || item.statistics?.likeCount || Math.floor(viewsNum * 0.08);
+              const commentsNum = item.commentCount || item.commentsCount || item.comments || Math.floor(likesNum * 0.04);
+              const creatorName = item.channelName || item.channelTitle || item.author || item.authorMeta?.name || item.username || item.channel?.title || 'youtube_creator';
+              const videoUrl = item.webVideoUrl || item.videoUrl || item.url || item.link || `https://www.youtube.com/watch?v=${item.id || idx}`;
+              const thumbUrl = item.thumbnailUrl || item.thumbnail || item.thumbnails?.[0]?.url || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=500&auto=format&fit=crop';
+              const titleText = item.title || item.text || item.description || `YouTube Viral Short: ${rawKeyword}`;
+              
+              const rawOutlier = item.outlierScore || item.outlierRatio || item.outlier || item.score;
+              const computedScore = rawOutlier 
+                ? Math.min(99, Math.max(75, Math.floor(rawOutlier * 10))) 
+                : Math.min(99, Math.max(78, Math.floor(Math.log10(viewsNum || 1000) * 15)));
+
               return {
-                id: `yt_${item.id || idx}_${Date.now()}`,
-                title: item.title || `YouTube Viral Short: ${rawKeyword}`,
-                description: item.text || item.description || `YouTube viral trend in ${countryName}`,
-                originalUrl: item.url || item.videoUrl || `https://www.youtube.com/hashtag/shorts`,
-                thumbnailUrl: item.thumbnailUrl || item.thumbnail || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=500&auto=format&fit=crop',
+                id: `yt_${item.id || item.videoId || idx}_${Date.now()}`,
+                title: titleText,
+                description: titleText,
+                originalUrl: videoUrl,
+                thumbnailUrl: thumbUrl,
                 platform: Platform.YouTube,
-                viralScore: Math.min(99, Math.max(78, Math.floor(Math.log10(viewsNum || 1000) * 15))),
+                viralScore: computedScore,
                 views: formatViews(viewsNum),
                 country: countryCode,
-                originalPostDate: new Date().toISOString().split('T')[0],
+                originalPostDate: item.publishedAt ? item.publishedAt.split('T')[0] : new Date().toISOString().split('T')[0],
                 status: VideoStatus.Scanned,
                 createdAt: Date.now(),
-                searchSources: [{ title: `YouTube Shorts Scraper (${countryCode})`, uri: item.url || 'https://youtube.com/shorts' }],
+                searchSources: [{ title: `YouTube Outlier Scraper (${actorId})`, uri: videoUrl }],
                 researchInsights: {
-                  hookType: `YouTube Shorts Verified`,
+                  hookType: rawOutlier ? `Outlier ${rawOutlier}x Retention Hook` : `YouTube Shorts Verified`,
                   audienceSegment: `${countryName} YouTube Shorts`,
                   commercialIntent: 'High',
-                  viralVelocity: 'Explosive Shorts Retention',
-                  creatorHandle: item.channelName || item.author || 'youtube_creator',
+                  viralVelocity: rawOutlier ? `High Outlier Factor (${rawOutlier}x)` : 'Explosive Shorts Retention',
+                  creatorHandle: creatorName,
                   likeCount: formatViews(likesNum),
-                  commentCount: formatViews(Math.floor(likesNum * 0.04)),
+                  commentCount: formatViews(commentsNum),
                   shareCount: formatViews(Math.floor(likesNum * 0.06))
                 }
               };
             });
             return { platform: Platform.YouTube, videos: apifyVideos.slice(0, count), logs };
           }
+        } else {
+          const errText = await response.text().catch(() => '');
+          logs.push(`⚠️ Apify YouTube Actor returned HTTP ${response.status}: ${errText || response.statusText}`);
         }
       } catch (err: any) {
         logs.push(`Notice: Live YouTube Apify extraction fell back to standard scraper parser: ${err.message}`);
