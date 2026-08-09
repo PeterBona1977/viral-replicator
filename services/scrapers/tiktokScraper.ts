@@ -201,7 +201,7 @@ export const tiktokScraper: SocialScraper = {
           if (Array.isArray(items) && items.length > 0) {
             logs.push(`Raw extraction complete: received ${items.length} verified items from Apify.`);
 
-            const mappedVideos: ViralVideo[] = items.map((item: any, index: number) => {
+            const mappedVideos: ViralVideo[] = items.map((item: any, index: number): ViralVideo | null => {
               // 1. Extract exact views from Apify JSON
               let viewsNum = extractNumericMetric(item, [
                 'playCount', 'views', 'viewCount', 'play_count',
@@ -231,22 +231,39 @@ export const tiktokScraper: SocialScraper = {
               ]);
 
               // Fallback calculations only if metric field is completely missing (-1)
-              if (viewsNum === -1) viewsNum = Math.floor(Math.random() * 800000) + 200000;
-              if (likesNum === -1) likesNum = Math.floor(viewsNum * 0.12);
-              if (commentsNum === -1) commentsNum = Math.floor(likesNum * 0.05);
-              if (sharesNum === -1) sharesNum = Math.floor(likesNum * 0.08);
+              if (viewsNum === -1) viewsNum = 0;
+              if (likesNum === -1) likesNum = 0;
+              if (commentsNum === -1) commentsNum = 0;
+              if (sharesNum === -1) sharesNum = 0;
+
+              const durationSecs = Number(item.videoMeta?.duration || item.duration || 25);
+              if (durationSecs > 90) {
+                return null;
+              }
 
               const authorHandle = extractTikTokAuthor(item, index, countryCode);
               const videoUrl = item.webVideoUrl || item.videoUrl || item.url || item.link || `https://www.tiktok.com/@${authorHandle}/video/${item.id || index}`;
-              const titleText = item.text || item.title || item.desc || item.videoMeta?.title || `Viral TikTok (${countryName}): ${baseKeyword}`;
+              const titleText = item.text || item.title || item.desc || item.videoMeta?.title || `TikTok Short (${countryName}): ${baseKeyword}`;
               const thumb = extractTikTokThumbnail(item);
 
-              const viralScore = Math.min(99, Math.max(75, Math.floor(Math.log10(Math.max(1000, viewsNum)) * 15)));
+              // Dynamic Viral Score (35 to 98)
+              const engRatio = viewsNum > 0 ? (likesNum + commentsNum * 2 + sharesNum * 3) / viewsNum : 0.08;
+              const engPercentage = (engRatio * 100).toFixed(1);
+
+              const baseScore = Math.log10(Math.max(viewsNum, 100)) * 8.5;
+              const engBonus = Math.min(30, engRatio * 200);
+
+              const viralScore = Math.min(98, Math.max(38, Math.round(baseScore + engBonus)));
+
+              const mins = Math.floor(durationSecs / 60);
+              const secs = Math.floor(durationSecs % 60);
+              const formattedDur = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+              const summaryText = titleText;
 
               return {
-                id: `tiktok_${item.id || item.itemId || Math.random().toString(36).substr(2, 9)}`,
+                id: `tiktok_${item.id || item.itemId || index}_${Date.now()}`,
                 title: titleText,
-                description: titleText,
+                description: summaryText,
                 originalUrl: videoUrl,
                 thumbnailUrl: thumb,
                 platform: Platform.TikTok,
@@ -263,21 +280,24 @@ export const tiktokScraper: SocialScraper = {
                   }
                 ],
                 researchInsights: {
-                  hookType: `TikTok Verified (${countryCode} - ${filters.timeRange})`,
+                  hookType: `TikTok FYP Hook (${engPercentage}% Engaged)`,
                   audienceSegment: `${countryName} TikTok Graph`,
-                  commercialIntent: "High",
+                  commercialIntent: 'High',
                   viralVelocity: filters.timeRange === TimeRange.Today ? "Explosive (24h)" : "High Velocity",
                   creatorHandle: authorHandle.replace(/^@/, ''),
                   likeCount: formatViews(likesNum),
                   commentCount: formatViews(commentsNum),
                   shareCount: formatViews(sharesNum),
-                  duration: item.videoMeta?.duration || item.duration || 15
+                  duration: durationSecs,
+                  durationFormatted: formattedDur,
+                  engagementRate: `${engPercentage}%`,
+                  summary: summaryText
                 }
               };
-            });
+            }).filter((v): v is ViralVideo => v !== null);
 
             const finalVideos = mappedVideos.slice(0, count);
-            logs.push(`Successfully parsed and normalized ${finalVideos.length} live TikTok viral trends with exact real metrics.`);
+            logs.push(`Successfully parsed ${finalVideos.length} native TikTok short videos (<90s) with dynamic metrics.`);
 
             return {
               platform: Platform.TikTok,
@@ -293,56 +313,9 @@ export const tiktokScraper: SocialScraper = {
       logs.push(`Notice: Apify API Token not present. Please enter your Apify token in Settings.`);
     }
 
-    logs.push(`Activating regional TikTok viral pattern synthesizer for ${countryName}...`);
-
-    const generateTikTokSample = (idx: number): ViralVideo => {
-      const viewsNum = Math.floor(Math.random() * 2500000) + 300000;
-      const likesNum = Math.floor(viewsNum * 0.13);
-      const commentsNum = Math.floor(likesNum * 0.06);
-      const sharesNum = Math.floor(likesNum * 0.09);
-
-      const title = `${baseKeyword.toUpperCase()} - TikTok Viral Trend in ${countryName} #${idx + 1}`;
-      const handle = extractTikTokAuthor({}, idx, countryCode);
-
-      return {
-        id: `tiktok_synth_${idx}_${Date.now()}`,
-        title,
-        description: `Explosive viral hook trending in ${countryName} targeting "${baseKeyword}". High retention 9:16 vertical video.`,
-        originalUrl: `https://www.tiktok.com/@${handle}/video/${Date.now() + idx}`,
-        thumbnailUrl: `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500&auto=format&fit=crop`,
-        platform: Platform.TikTok,
-        viralScore: Math.min(99, 85 + (idx % 14)),
-        views: formatViews(viewsNum),
-        country: countryCode,
-        originalPostDate: new Date().toISOString().split('T')[0],
-        status: VideoStatus.Scanned,
-        createdAt: Date.now(),
-        searchSources: [
-          {
-            title: `TikTok Scraper Engine (${countryName})`,
-            uri: `https://www.tiktok.com/@${handle}`
-          }
-        ],
-        researchInsights: {
-          hookType: "Fast Cut 1.5s Text Overlay",
-          audienceSegment: `${countryName} FYP Feed`,
-          commercialIntent: "High",
-          viralVelocity: "Explosive (24h)",
-          creatorHandle: handle,
-          likeCount: formatViews(likesNum),
-          commentCount: formatViews(commentsNum),
-          shareCount: formatViews(sharesNum),
-          duration: 18
-        }
-      };
-    };
-
-    const syntheticVideos = Array.from({ length: count }, (_, i) => generateTikTokSample(i));
-    logs.push(`Extracted ${syntheticVideos.length} regional TikTok viral video hooks for ${countryName}.`);
-
     return {
       platform: Platform.TikTok,
-      videos: syntheticVideos,
+      videos: [],
       logs
     };
   }

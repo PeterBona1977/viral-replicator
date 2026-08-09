@@ -234,21 +234,59 @@ export const VideoModal: React.FC<VideoModalProps> = ({ video, onClose }) => {
             <div className="space-y-8 flex-1">
                 {viewMode === 'original' ? (
                     <>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-black/40 p-5 rounded-2xl border border-white/5">
-                                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">Views</p>
-                                <p className="text-white font-black text-lg">{video.views}</p>
+                        {/* Detailed Metrics Grid */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                    <Zap size={10} className="text-yellow-400" /> Duração
+                                </p>
+                                <p className="text-white font-black text-base font-mono">
+                                    {video.researchInsights?.durationFormatted || `${video.researchInsights?.duration || 45}s`}
+                                </p>
                             </div>
-                            <div className="bg-black/40 p-5 rounded-2xl border border-white/5">
-                                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">Region</p>
-                                <p className="text-white font-black text-lg">{video.country}</p>
+                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                                <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                    <BarChart3 size={10} /> Engajamento
+                                </p>
+                                <p className="text-purple-300 font-black text-base font-mono">
+                                    {video.researchInsights?.engagementRate || 'N/A'}
+                                </p>
+                            </div>
+                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Visualizações</p>
+                                <p className="text-white font-black text-base">{video.views}</p>
+                            </div>
+                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                                <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1">Gostos</p>
+                                <p className="text-purple-300 font-black text-base">{video.researchInsights?.likeCount || 'N/A'}</p>
+                            </div>
+                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                                <p className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-1">Comentários</p>
+                                <p className="text-cyan-300 font-black text-base">{video.researchInsights?.commentCount || 'N/A'}</p>
+                            </div>
+                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                                <p className="text-[9px] font-black text-green-400 uppercase tracking-widest mb-1">Partilhas</p>
+                                <p className="text-green-300 font-black text-base">{video.researchInsights?.shareCount || 'N/A'}</p>
                             </div>
                         </div>
 
-                        <div className="bg-slate-950/50 rounded-2xl p-6 border border-white/5">
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Sparkles size={12} className="text-purple-400" /> Viral Logic</h4>
-                            <p className="text-[11px] text-slate-400 leading-relaxed font-medium italic">
-                                {video.description}
+                        {video.researchInsights?.outlierMultiplier && (
+                            <div className="bg-purple-950/40 p-4 rounded-2xl border border-purple-500/30 flex items-center justify-between">
+                                <span className="text-[10px] font-black text-purple-300 uppercase tracking-widest flex items-center gap-1.5">
+                                    <TrendingUp size={14} className="text-purple-400" /> Fator Outlier Canal
+                                </span>
+                                <span className="text-sm font-black text-white font-mono bg-purple-600/30 px-3 py-1 rounded-xl border border-purple-400/30">
+                                    {video.researchInsights.outlierMultiplier}
+                                </span>
+                            </div>
+                        )}
+
+                        <div className="bg-slate-950/50 rounded-2xl p-6 border border-white/5 space-y-2">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <Sparkles size={12} className="text-purple-400" /> Resumo & Análise do Conceito
+                            </h4>
+                            <p className="text-[11px] text-slate-200 leading-relaxed font-medium">
+                                {video.researchInsights?.summary || video.description}
                             </p>
                         </div>
                     </>

@@ -155,21 +155,35 @@ export const fetchTikTokTrendsViaApify = async (filters: ScannerFilters): Promis
   }
 
   const mappedVideos: ViralVideo[] = items.map((item: any, index: number) => {
-    const viewsNum = item.playCount || item.views || item.stats?.playCount || item.statistics?.playCount || Math.floor(Math.random() * 800000) + 200000;
-    const likesNum = item.diggCount || item.likes || item.stats?.diggCount || item.statistics?.diggCount || Math.floor(viewsNum * 0.12);
+    const viewsNum = Number(item.playCount || item.views || item.stats?.playCount || item.statistics?.playCount || 0);
+    const likesNum = Number(item.diggCount || item.likes || item.stats?.diggCount || item.statistics?.diggCount || 0);
+    const commentsNum = Number(item.commentCount || item.comments || item.stats?.commentCount || 0);
+    const sharesNum = Number(item.shareCount || item.shares || item.stats?.shareCount || 0);
+
     const videoUrl = item.webVideoUrl || item.videoUrl || item.url || item.link || `https://www.tiktok.com/@${item.authorMeta?.name || 'user'}/video/${item.id || index}`;
     const authorHandle = item.authorMeta?.name || item.authorMeta?.nickName || item.author?.uniqueId || item.username || 'tiktok_creator';
     const titleText = item.text || item.title || item.desc || `Viral TikTok (${countryName}): ${baseKeyword}`;
     const thumb = item.covers?.origin || item.covers?.default || item.cover || item.thumbnailUrl || item.thumbnail || `https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=500&auto=format&fit=crop`;
 
+    const engRatio = viewsNum > 0 ? (likesNum + commentsNum * 2 + sharesNum * 3) / viewsNum : 0.08;
+    const engPercentage = (engRatio * 100).toFixed(1);
+
+    const baseScore = Math.log10(Math.max(viewsNum, 100)) * 8.5;
+    const engBonus = Math.min(30, engRatio * 200);
+
+    const computedScore = Math.min(98, Math.max(38, Math.round(baseScore + engBonus)));
+    const durationSecs = Number(item.videoMeta?.duration || item.duration || 25);
+    const mins = Math.floor(durationSecs / 60);
+    const secs = Math.floor(durationSecs % 60);
+
     return {
-      id: `apify_${item.id || item.itemId || Math.random().toString(36).substr(2, 9)}`,
+      id: `apify_${item.id || item.itemId || index}_${Date.now()}`,
       title: titleText,
       description: titleText,
       originalUrl: videoUrl,
       thumbnailUrl: thumb,
       platform: Platform.TikTok,
-      viralScore: Math.min(99, Math.max(75, Math.floor(Math.log10(viewsNum || 1000) * 15))),
+      viralScore: computedScore,
       views: formatViews(viewsNum),
       country: countryCode,
       originalPostDate: item.createTimeISO ? item.createTimeISO.split('T')[0] : new Date().toISOString().split('T')[0],
@@ -182,14 +196,18 @@ export const fetchTikTokTrendsViaApify = async (filters: ScannerFilters): Promis
         }
       ],
       researchInsights: {
-        hookType: `Apify Verified (${countryCode} - ${filters.timeRange})`,
+        hookType: `Apify Verified (${engPercentage}% Engaged)`,
         audienceSegment: `${countryName} Social Graph`,
         commercialIntent: "High",
         viralVelocity: filters.timeRange === TimeRange.Today ? "Explosive (24h)" : "High Velocity",
         creatorHandle: authorHandle,
         likeCount: formatViews(likesNum),
-        commentCount: formatViews(item.commentCount || item.stats?.commentCount || 0),
-        shareCount: formatViews(item.shareCount || item.stats?.shareCount || 0)
+        commentCount: formatViews(commentsNum),
+        shareCount: formatViews(sharesNum),
+        duration: durationSecs,
+        durationFormatted: `${mins}:${secs < 10 ? '0' : ''}${secs}`,
+        engagementRate: `${engPercentage}%`,
+        summary: titleText
       }
     };
   });

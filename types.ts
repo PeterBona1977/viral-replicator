@@ -82,6 +82,10 @@ export interface ResearchInsights {
   hashtags?: string[];
   creatorHandle?: string;
   duration?: number;
+  durationFormatted?: string;
+  engagementRate?: string;
+  outlierMultiplier?: string;
+  summary?: string;
   effectIds?: string[];
 }
 

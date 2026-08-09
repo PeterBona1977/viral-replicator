@@ -110,10 +110,16 @@ export const ViralCard: React.FC<ViralCardProps> = ({ video, onRecreate, onPlay 
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="bg-purple-950/60 border border-purple-500/30 px-3.5 py-1.5 rounded-2xl flex items-center gap-2 shadow-inner">
-            <Flame size={16} className="text-orange-400 animate-pulse" />
+          <div className={`px-3.5 py-1.5 rounded-2xl flex items-center gap-2 border shadow-inner ${
+            video.viralScore >= 85 
+              ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+              : video.viralScore >= 70
+                ? 'bg-purple-950/60 border-purple-500/30 text-purple-300'
+                : 'bg-cyan-950/60 border-cyan-500/30 text-cyan-300'
+          }`}>
+            <Flame size={16} className={video.viralScore >= 85 ? "text-emerald-400 animate-bounce" : "text-orange-400 animate-pulse"} />
             <span className="text-sm font-black text-white">{video.viralScore}</span>
-            <span className="text-[9px] text-purple-300 font-black uppercase tracking-widest">Score</span>
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-80">Score</span>
           </div>
 
           <a 
@@ -131,6 +137,22 @@ export const ViralCard: React.FC<ViralCardProps> = ({ video, onRecreate, onPlay 
 
       {/* Main Video Display Area (Tall 9:16 Vertical Aspect Ratio for Full Video Visibility) */}
       <div className="relative aspect-[9/12] w-full bg-black overflow-hidden shrink-0 group/image border-b border-slate-800">
+        
+        {/* Short-Form Video Duration Badge */}
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 text-white">
+          <Zap size={12} className="text-yellow-400 fill-yellow-400" />
+          <span className="text-[10px] font-black tracking-widest font-mono">
+            {video.researchInsights?.durationFormatted || `${video.researchInsights?.duration || 45}s`}
+          </span>
+        </div>
+
+        {video.researchInsights?.outlierMultiplier && (
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-purple-900/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-purple-400/40 text-purple-200">
+            <TrendingUp size={12} className="text-purple-300" />
+            <span className="text-[10px] font-black font-mono">{video.researchInsights.outlierMultiplier} Outlier</span>
+          </div>
+        )}
+
         {isPlaying && embedUrl ? (
             <div className="absolute inset-0 bg-black z-20 group/player flex items-center justify-center">
                 {video.generatedVideoUrl ? (
@@ -242,7 +264,7 @@ export const ViralCard: React.FC<ViralCardProps> = ({ video, onRecreate, onPlay 
         <div className="space-y-3">
           <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">
             <span className="flex items-center gap-1.5"><BarChart3 size={14} className="text-purple-400" /> Métricas de Desempenho</span>
-            <span className="text-purple-300">Potencial Viral: {shareRate}% Partilhas</span>
+            <span className="text-purple-300">Engajamento: {video.researchInsights?.engagementRate || `${likeRate}%`}</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

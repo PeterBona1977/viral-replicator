@@ -13,7 +13,7 @@ export const instagramScraper: SocialScraper = {
   platform: Platform.Instagram,
 
   isConfigured: () => {
-    return true;
+    return !!getApifyToken();
   },
 
   scrape: async (filters: ScannerFilters): Promise<ScraperResult> => {
@@ -27,95 +27,99 @@ export const instagramScraper: SocialScraper = {
     const logs: string[] = [
       `Instagram Reels Scraper engine initiated`,
       `Target Region: ${countryName} (${countryCode}) | Query: "${rawKeyword}"`,
-      `Time Window: ${filters.timeRange}`
+      `Time Window: ${filters.timeRange} | Max Duration: 90s`
     ];
 
-    if (token) {
-      try {
-        const actorId = "apify/instagram-reel-scraper";
-        const url = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=60`;
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            searchKeywords: [rawKeyword, `${rawKeyword} reels`],
-            resultsLimit: count
-          })
-        });
-
-        if (response.ok) {
-          const items = await response.json();
-          if (Array.isArray(items) && items.length > 0) {
-            logs.push(`Instagram Apify Scraper returned ${items.length} live reels.`);
-            const igVideos: ViralVideo[] = items.map((item: any, idx: number) => {
-              const viewsNum = item.playCount || item.videoViewCount || item.likesCount * 8 || Math.floor(Math.random() * 700000) + 150000;
-              const likesNum = item.likesCount || Math.floor(viewsNum * 0.1);
-              return {
-                id: `ig_${item.id || idx}_${Date.now()}`,
-                title: item.caption || `Instagram Reel: ${rawKeyword}`,
-                description: item.caption || `Instagram Reel in ${countryName}`,
-                originalUrl: item.url || `https://www.instagram.com/reels`,
-                thumbnailUrl: item.displayUrl || item.thumbnailUrl || 'https://images.unsplash.com/photo-1611262588024-d12430b98920?q=80&w=500&auto=format&fit=crop',
-                platform: Platform.Instagram,
-                viralScore: Math.min(99, Math.max(76, Math.floor(Math.log10(viewsNum || 1000) * 15))),
-                views: formatViews(viewsNum),
-                country: countryCode,
-                originalPostDate: new Date().toISOString().split('T')[0],
-                status: VideoStatus.Scanned,
-                createdAt: Date.now(),
-                searchSources: [{ title: `Instagram Reels Scraper (${countryCode})`, uri: item.url || 'https://instagram.com/reels' }],
-                researchInsights: {
-                  hookType: 'Aesthetic Trend Transition',
-                  audienceSegment: `${countryName} IG Feed`,
-                  commercialIntent: 'High',
-                  viralVelocity: 'High Engagement Rate',
-                  creatorHandle: item.ownerUsername || 'reels_creator',
-                  likeCount: formatViews(likesNum),
-                  commentCount: formatViews(item.commentsCount || Math.floor(likesNum * 0.04)),
-                  shareCount: formatViews(Math.floor(likesNum * 0.05))
-                }
-              };
-            });
-            return { platform: Platform.Instagram, videos: igVideos.slice(0, count), logs };
-          }
-        }
-      } catch (err: any) {
-        logs.push(`Notice: Live Instagram Apify extraction fell back to standard scraper parser: ${err.message}`);
-      }
+    if (!token) {
+      logs.push("⚠️ Apify API Token missing in Settings. Please set token to enable Instagram extraction.");
+      return { platform: Platform.Instagram, videos: [], logs };
     }
 
-    logs.push("Parsing high-engagement Instagram Reels patterns.");
-    const generateIgSample = (idx: number): ViralVideo => {
-      const viewsNum = Math.floor(Math.random() * 1200000) + 180000;
-      const likesNum = Math.floor(viewsNum * 0.11);
-      return {
-        id: `ig_synth_${idx}_${Date.now()}`,
-        title: `${rawKeyword.toUpperCase()} - Replicable Instagram Reel #${idx + 1}`,
-        description: `High aesthetic viral Reel in ${countryName} targeting ${rawKeyword}.`,
-        originalUrl: `https://www.instagram.com/reels`,
-        thumbnailUrl: `https://images.unsplash.com/photo-1611262588024-d12430b98920?q=80&w=500&auto=format&fit=crop`,
-        platform: Platform.Instagram,
-        viralScore: Math.min(99, 82 + (idx % 15)),
-        views: formatViews(viewsNum),
-        country: countryCode,
-        originalPostDate: new Date().toISOString().split('T')[0],
-        status: VideoStatus.Scanned,
-        createdAt: Date.now(),
-        searchSources: [{ title: `Instagram Reels Scraper (${countryCode})`, uri: `https://instagram.com/reels` }],
-        researchInsights: {
-          hookType: 'Visual Aesthetic Hook',
-          audienceSegment: `${countryName} Instagram Network`,
-          commercialIntent: 'High',
-          viralVelocity: 'Explosive Reach',
-          creatorHandle: `reels_creator_${idx + 1}`,
-          likeCount: formatViews(likesNum),
-          commentCount: formatViews(Math.floor(likesNum * 0.05)),
-          shareCount: formatViews(Math.floor(likesNum * 0.08))
-        }
-      };
-    };
+    try {
+      const actorId = "apify/instagram-reel-scraper";
+      const url = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=60`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchKeywords: [rawKeyword, `${rawKeyword} reels`],
+          resultsLimit: count * 2
+        })
+      });
 
-    const videos = Array.from({ length: count }, (_, i) => generateIgSample(i));
-    return { platform: Platform.Instagram, videos, logs };
+      if (response.ok) {
+        const items = await response.json();
+        if (Array.isArray(items) && items.length > 0) {
+          logs.push(`Instagram Apify Scraper returned ${items.length} live reels.`);
+          
+          const filteredVideos: ViralVideo[] = [];
+
+          for (let idx = 0; idx < items.length; idx++) {
+            const item = items[idx];
+            const durationSecs = Number(item.videoDuration || item.duration || 30);
+
+            if (durationSecs > 90) {
+              continue;
+            }
+
+            const viewsNum = Number(item.playCount || item.videoViewCount || item.videoPlayCount || 0);
+            const likesNum = Number(item.likesCount || item.likeCount || 0);
+            const commentsNum = Number(item.commentsCount || item.commentCount || 0);
+            const sharesNum = Number(item.sharesCount || Math.floor(likesNum * 0.06));
+
+            const engRatio = viewsNum > 0 ? (likesNum + commentsNum * 2) / viewsNum : 0.07;
+            const engPercentage = (engRatio * 100).toFixed(1);
+
+            const baseScore = Math.log10(Math.max(viewsNum, 100)) * 8.5;
+            const engBonus = Math.min(30, engRatio * 200);
+
+            const computedScore = Math.min(98, Math.max(38, Math.round(baseScore + engBonus)));
+
+            const mins = Math.floor(durationSecs / 60);
+            const secs = Math.floor(durationSecs % 60);
+            const formattedDur = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            const summaryText = item.caption || `Instagram Reel in ${countryName} targeting ${rawKeyword}.`;
+
+            filteredVideos.push({
+              id: `ig_${item.id || idx}_${Date.now()}`,
+              title: summaryText,
+              description: summaryText,
+              originalUrl: item.url || `https://www.instagram.com/reels`,
+              thumbnailUrl: item.displayUrl || item.thumbnailUrl || 'https://images.unsplash.com/photo-1611262588024-d12430b98920?q=80&w=500&auto=format&fit=crop',
+              platform: Platform.Instagram,
+              viralScore: computedScore,
+              views: formatViews(viewsNum),
+              country: countryCode,
+              originalPostDate: item.timestamp ? item.timestamp.split('T')[0] : new Date().toISOString().split('T')[0],
+              status: VideoStatus.Scanned,
+              createdAt: Date.now(),
+              searchSources: [{ title: `Instagram Reels Scraper (${countryCode})`, uri: item.url || 'https://instagram.com/reels' }],
+              researchInsights: {
+                hookType: 'Visual Aesthetic Hook',
+                audienceSegment: `${countryName} IG Feed`,
+                commercialIntent: 'High',
+                viralVelocity: `${engPercentage}% Engaged Velocity`,
+                creatorHandle: item.ownerUsername || 'reels_creator',
+                likeCount: formatViews(likesNum),
+                commentCount: formatViews(commentsNum),
+                shareCount: formatViews(sharesNum),
+                duration: durationSecs,
+                durationFormatted: formattedDur,
+                engagementRate: `${engPercentage}%`,
+                summary: summaryText
+              }
+            });
+          }
+
+          logs.push(`Successfully filtered ${filteredVideos.length} short Instagram Reels (<90s).`);
+          return { platform: Platform.Instagram, videos: filteredVideos.slice(0, count), logs };
+        }
+      }
+    } catch (err: any) {
+      logs.push(`⚠️ Instagram Live Scraper Error: ${err.message}`);
+    }
+
+    return { platform: Platform.Instagram, videos: [], logs };
   }
 };
+
