@@ -135,7 +135,12 @@ const App: React.FC = () => {
             setCurrentAudit(result.audit);
             setSavedAudit(result.audit);
             localStorage.setItem('viralrep_last_audit', JSON.stringify(result.audit));
-            showNotification(`${result.videos.length} Trends Discovered.`, 'success');
+            const has403 = result.audit?.operationLog?.some((l: string) => l.includes('403') || l.includes('401'));
+            if (has403) {
+                showNotification(`${result.videos.length} Trends Discovered (Demo Mode: Apify Token 403 Forbidden)`, 'info');
+            } else {
+                showNotification(`${result.videos.length} Trends Discovered.`, 'success');
+            }
         } else {
             showNotification("No trends found with current filters.", 'info');
         }
