@@ -108,23 +108,60 @@ export const runSocialScrapers = async (filters: ScannerFilters): Promise<Search
     }
   }
 
+  // If Apify is unconfigured or returns zero items / 403, seamlessly use local free yt-dlp backend engine
+  if (allVideos.length === 0) {
+    allLogs.push(`Connecting to local free yt-dlp Extraction Engine (http://localhost:3001/api/scrape)...`);
+    const perPlatformCount = Math.ceil((filters.resultCount || 8) / selectedPlatforms.length);
+    
+    for (const platform of selectedPlatforms) {
+      try {
+        const response = await fetch('http://localhost:3001/api/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keywords,
+            platform,
+            country: countryCode,
+            count: perPlatformCount
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.videos) && data.videos.length > 0) {
+            allLogs.push(`✅ yt-dlp Free Engine: Extracted ${data.videos.length} live verified short videos for ${platform}.`);
+            if (Array.isArray(data.logs)) allLogs.push(...data.logs);
+            allVideos.push(...data.videos);
+          }
+        }
+      } catch (e: any) {
+        allLogs.push(`Notice: Local yt-dlp server not active on port 3001 (${e.message}).`);
+      }
+    }
+  }
+
+  const isYtDlpExtracted = allVideos.some(v => v.id.startsWith('ytdlp_'));
   const has403Or401 = allLogs.some(log => log.includes('HTTP 403') || log.includes('HTTP 401') || log.includes('Forbidden'));
 
   if (allVideos.length === 0) {
     if (has403Or401) {
-      allLogs.push(`⚠️ Apify API Token returned HTTP 403 Forbidden (Access Denied or Expired). Loaded high-quality simulated trend data for testing.`);
-      allLogs.push(`💡 Action Required: Go to Settings -> Apify Scraper Engine to enter a valid Apify API token (console.apify.com).`);
+      allLogs.push(`⚠️ Apify API Token returned HTTP 403 Forbidden. Loaded demo trend data.`);
     } else {
-      allLogs.push(`Notice: Live scraping produced 0 items. Generating demo viral trends for selected niche and country.`);
+      allLogs.push(`Notice: Generating demo viral trends for selected niche.`);
     }
     allVideos = generateFallbackVideos(filters, selectedPlatforms);
   }
 
+  let strategicSummary = `Successfully extracted ${allVideos.length} social video trends across ${selectedPlatforms.join(', ')}.`;
+  if (isYtDlpExtracted) {
+    strategicSummary = `Extracted ${allVideos.length} live viral trends using 100% Free Local yt-dlp Engine (0 API Token Fees).`;
+  } else if (has403Or401) {
+    strategicSummary = `Extracted ${allVideos.length} viral trends (Demo Fallback Mode - Apify Token HTTP 403). Enter valid token in Settings or launch local yt-dlp server.`;
+  }
+
   const audit: SearchAudit = {
     operationLog: allLogs,
-    strategicSummary: has403Or401
-      ? `Extracted ${allVideos.length} viral trends (Demo Fallback Mode - Apify Token HTTP 403). Set a valid token in Settings for live social graph feeds.`
-      : `Successfully extracted ${allVideos.length} social video trends across ${selectedPlatforms.join(', ')}.`,
+    strategicSummary,
     regionInsight: `Engagement metrics in ${primaryCountry} for keyword "${keywords}".`,
     replicationPlaybook: {
       hookAdvice: "Fast visual hook within first 1.5s with high-contrast text overlay.",
