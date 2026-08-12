@@ -1,6 +1,6 @@
 import { Platform, ScannerFilters, ViralVideo, VideoStatus, TimeRange, SUPPORTED_COUNTRIES } from '../../types';
 import { SocialScraper, ScraperResult } from './types';
-import { getApifyToken } from '../apifyService';
+import { getApifyToken, getApifyInstagramActorId } from '../apifyService';
 
 const formatViews = (num: number): string => {
   if (!num || isNaN(num)) return '0';
@@ -44,9 +44,10 @@ export const instagramScraper: SocialScraper = {
     const countryName = countryObj ? countryObj.name : 'United States';
     const count = filters.resultCount || 8;
     const token = getApifyToken();
+    const actorId = getApifyInstagramActorId();
 
     const logs: string[] = [
-      `Instagram Reels Scraper engine initiated`,
+      `Instagram Reels Scraper engine initiated (Actor: ${actorId})`,
       `Target Region: ${countryName} (${countryCode}) | Query: "${rawKeyword}"`,
       `Time Window: ${filters.timeRange} | Max Duration: 90s`
     ];
@@ -57,7 +58,6 @@ export const instagramScraper: SocialScraper = {
     }
 
     try {
-      const actorId = "apify/instagram-reel-scraper";
       const url = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=60`;
       const response = await fetch(url, {
         method: 'POST',

@@ -183,13 +183,26 @@ export const tiktokScraper: SocialScraper = {
 
         const url = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=60`;
 
-        const response = await fetch(url, {
+        let response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(inputPayload)
         });
+
+        // Fallback: If country-specific proxy causes 400/403 (e.g. Free Apify plans without country proxy access), retry with standard proxy
+        if (!response.ok && (response.status === 400 || response.status === 403)) {
+          const fallbackPayload = { ...inputPayload, proxyConfig: { useApifyProxy: true } };
+          const fallbackRes = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fallbackPayload)
+          });
+          if (fallbackRes.ok) {
+            response = fallbackRes;
+          }
+        }
 
         if (response.status === 401 || response.status === 403) {
           logs.push(`⚠️ Apify API Token invalid, expired, or forbidden (HTTP ${response.status}). Verify token & actor permissions in Settings (console.apify.com).`);

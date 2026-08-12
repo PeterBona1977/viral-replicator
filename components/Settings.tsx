@@ -1,9 +1,21 @@
 
-import { Video, Instagram, Youtube, Database, Target, ShieldCheck, LogOut, RotateCcw, AlertCircle, Link, X, CheckCircle2, Key, Cpu } from 'lucide-react';
+import { Video, Instagram, Youtube, Database, Target, ShieldCheck, LogOut, RotateCcw, AlertCircle, Link, X, CheckCircle2, Key, Cpu, Zap, Activity } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Platform, SocialAccount, UserProfile } from '../types';
 import { isSupabaseInitialized, subscribeToConnectionStatus, updateSupabaseConfig, clearSupabaseConfig, checkTableHealth } from '../services/supabaseService';
-import { getApifyToken, setApifyToken, getApifyActorId, setApifyActorId, getApifyYouTubeActorId, setApifyYouTubeActorId } from '../services/apifyService';
+import { 
+  getApifyToken, 
+  setApifyToken, 
+  getApifyActorId, 
+  setApifyActorId, 
+  getApifyYouTubeActorId, 
+  setApifyYouTubeActorId,
+  getApifyInstagramActorId,
+  setApifyInstagramActorId,
+  testApifyTokenConnection,
+  APIFY_ACTOR_PRESETS,
+  ApifyTokenTestResult
+} from '../services/apifyService';
 
 interface SettingsProps {
   accounts: SocialAccount[];
@@ -24,9 +36,12 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
   const [apifyTokenInput, setApifyTokenInput] = useState(getApifyToken());
   const [apifyActorInput, setApifyActorInput] = useState(getApifyActorId());
   const [apifyYtActorInput, setApifyYtActorInput] = useState(getApifyYouTubeActorId());
+  const [apifyIgActorInput, setApifyIgActorInput] = useState(getApifyInstagramActorId());
   const [showDbConfig, setShowDbConfig] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [apifySavedNotice, setApifySavedNotice] = useState(false);
+  const [isTestingToken, setIsTestingToken] = useState(false);
+  const [testResult, setTestResult] = useState<ApifyTokenTestResult | null>(null);
 
 
   useEffect(() => {
@@ -154,59 +169,144 @@ export const Settings: React.FC<SettingsProps> = ({ accounts, onAccountAction, o
                         <div>
                             <h3 className="text-lg font-black text-white uppercase tracking-wider">Apify Scraper Engine</h3>
                             <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
-                                {apifyTokenInput ? "Apify Active - Live Social Graph Scraping Enabled" : "Optional - Set Token to Enable Direct Social Media Extraction"}
+                                {apifyTokenInput ? "Apify Configured - Live Social Media Scraping Ready" : "Optional - Set Token to Enable Direct Social Media Extraction"}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-4 bg-slate-950 p-6 rounded-2xl border border-white/5">
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <div>
+                <div className="space-y-5 bg-slate-950 p-6 rounded-2xl border border-white/5">
+                    {/* Token row + Connection Test */}
+                    <div className="flex flex-col md:flex-row gap-3 items-end">
+                        <div className="flex-1 w-full">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                                <Key size={10} className="text-cyan-400" /> Apify API Token
+                                <Key size={10} className="text-cyan-400" /> Apify API Token (console.apify.com)
                             </label>
                             <input 
                                 type="password"
                                 value={apifyTokenInput} 
-                                onChange={(e) => setApifyTokenInput(e.target.value)} 
+                                onChange={(e) => {
+                                    setApifyTokenInput(e.target.value);
+                                    setTestResult(null);
+                                }} 
                                 placeholder="apify_api_..."
                                 className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-cyan-500 outline-none" 
                             />
                         </div>
+                        <button
+                            disabled={isTestingToken || !apifyTokenInput.trim()}
+                            onClick={async () => {
+                                setIsTestingToken(true);
+                                const res = await testApifyTokenConnection(apifyTokenInput);
+                                setTestResult(res);
+                                setIsTestingToken(false);
+                            }}
+                            className="w-full md:w-auto px-5 py-3 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-xl font-black text-[10px] uppercase tracking-widest border border-cyan-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                        >
+                            {isTestingToken ? <RotateCcw size={12} className="animate-spin" /> : <Activity size={12} />}
+                            {isTestingToken ? 'Testing...' : 'Test Token'}
+                        </button>
+                    </div>
+
+                    {/* Test result status banner */}
+                    {testResult && (
+                        <div className={`p-4 rounded-xl border text-xs font-mono flex items-start gap-3 ${
+                            testResult.success 
+                            ? 'bg-green-500/10 border-green-500/30 text-green-400' 
+                            : 'bg-red-500/10 border-red-500/30 text-red-400'
+                        }`}>
+                            {testResult.success ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> : <AlertCircle size={16} className="shrink-0 mt-0.5" />}
+                            <div>
+                                <p className="font-bold">{testResult.message}</p>
+                                {testResult.success && testResult.plan && (
+                                    <p className="text-[10px] text-green-300/80 mt-1">Plan: {testResult.plan} | Verified user status OK</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Actor Inputs Grid */}
+                    <div className="grid gap-4 md:grid-cols-3 pt-2">
+                        {/* TikTok Actor */}
                         <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                                <Cpu size={10} className="text-cyan-400" /> TikTok Actor ID
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center gap-1"><Cpu size={10} className="text-cyan-400" /> TikTok Actor ID</span>
                             </label>
                             <input 
                                 value={apifyActorInput} 
                                 onChange={(e) => setApifyActorInput(e.target.value)} 
                                 placeholder="coregent/tiktok-viral-video-finder"
-                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-cyan-500 outline-none" 
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-cyan-500 outline-none mb-1.5" 
                             />
+                            <select
+                                onChange={(e) => e.target.value && setApifyActorInput(e.target.value)}
+                                className="w-full bg-slate-900/60 border border-slate-800 text-[10px] text-slate-400 rounded-lg p-1.5 outline-none font-mono"
+                                defaultValue=""
+                            >
+                                <option value="" disabled>Presets...</option>
+                                {APIFY_ACTOR_PRESETS.TikTok.map(p => (
+                                    <option key={p.id} value={p.id}>{p.label}</option>
+                                ))}
+                            </select>
                         </div>
+
+                        {/* YouTube Actor */}
                         <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                                <Cpu size={10} className="text-red-400" /> YouTube Actor ID
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center gap-1"><Cpu size={10} className="text-red-400" /> YouTube Actor ID</span>
                             </label>
                             <input 
                                 value={apifyYtActorInput} 
                                 onChange={(e) => setApifyYtActorInput(e.target.value)} 
                                 placeholder="8frL5jLRMkNtPuwIo"
-                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-red-500 outline-none" 
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-red-500 outline-none mb-1.5" 
                             />
+                            <select
+                                onChange={(e) => e.target.value && setApifyYtActorInput(e.target.value)}
+                                className="w-full bg-slate-900/60 border border-slate-800 text-[10px] text-slate-400 rounded-lg p-1.5 outline-none font-mono"
+                                defaultValue=""
+                            >
+                                <option value="" disabled>Presets...</option>
+                                {APIFY_ACTOR_PRESETS.YouTube.map(p => (
+                                    <option key={p.id} value={p.id}>{p.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Instagram Actor */}
+                        <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center gap-1"><Cpu size={10} className="text-pink-400" /> Instagram Actor ID</span>
+                            </label>
+                            <input 
+                                value={apifyIgActorInput} 
+                                onChange={(e) => setApifyIgActorInput(e.target.value)} 
+                                placeholder="apify/instagram-reel-scraper"
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono focus:border-pink-500 outline-none mb-1.5" 
+                            />
+                            <select
+                                onChange={(e) => e.target.value && setApifyIgActorInput(e.target.value)}
+                                className="w-full bg-slate-900/60 border border-slate-800 text-[10px] text-slate-400 rounded-lg p-1.5 outline-none font-mono"
+                                defaultValue=""
+                            >
+                                <option value="" disabled>Presets...</option>
+                                {APIFY_ACTOR_PRESETS.Instagram.map(p => (
+                                    <option key={p.id} value={p.id}>{p.label}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
                         <p className="text-[9px] text-slate-500 font-medium">
-                            Apify YT Actor link: <code className="text-cyan-300 font-mono">console.apify.com/actors/{apifyYtActorInput || '8frL5jLRMkNtPuwIo'}</code>
+                            Apify Console: <a href="https://console.apify.com/actors" target="_blank" rel="noreferrer" className="text-cyan-400 underline hover:text-cyan-300 font-mono">console.apify.com/actors</a>
                         </p>
                         <button 
                             onClick={() => {
                                 setApifyToken(apifyTokenInput);
                                 setApifyActorId(apifyActorInput);
                                 setApifyYouTubeActorId(apifyYtActorInput);
+                                setApifyInstagramActorId(apifyIgActorInput);
                                 setApifySavedNotice(true);
                                 setTimeout(() => setApifySavedNotice(false), 3000);
                             }} 

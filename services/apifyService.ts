@@ -4,6 +4,25 @@ import { APIFY_API_TOKEN, APIFY_TIKTOK_ACTOR_ID, APIFY_YOUTUBE_ACTOR_ID } from '
 const TOKEN_KEY = 'apify_token_override';
 const ACTOR_KEY = 'apify_actor_override';
 const YOUTUBE_ACTOR_KEY = 'apify_youtube_actor_override';
+const INSTAGRAM_ACTOR_KEY = 'apify_instagram_actor_override';
+
+export const APIFY_ACTOR_PRESETS = {
+  TikTok: [
+    { label: 'Coregent TikTok Viral Finder', id: 'coregent/tiktok-viral-video-finder' },
+    { label: 'Clockworks Free TikTok Scraper', id: 'clockworks/free-tiktok-scraper' },
+    { label: 'Apify Official TikTok Scraper', id: 'apify/tiktok-scraper' }
+  ],
+  YouTube: [
+    { label: 'YouTube Shorts Scraper', id: '8frL5jLRMkNtPuwIo' },
+    { label: 'Streamers YouTube Scraper', id: 'streamers/youtube-scraper' },
+    { label: 'Apify Official YouTube Scraper', id: 'apify/youtube-scraper' }
+  ],
+  Instagram: [
+    { label: 'Apify Instagram Reel Scraper', id: 'apify/instagram-reel-scraper' },
+    { label: 'Apify Official Instagram Scraper', id: 'apify/instagram-scraper' },
+    { label: 'Reels Scraper Engine', id: 'jaroslav/instagram-reels-scraper' }
+  ]
+};
 
 export const getApifyToken = (): string => {
   if (typeof window !== 'undefined') {
@@ -58,6 +77,75 @@ export const setApifyYouTubeActorId = (actorId: string): void => {
     } else {
       localStorage.removeItem(YOUTUBE_ACTOR_KEY);
     }
+  }
+};
+
+export const getApifyInstagramActorId = (): string => {
+  if (typeof window !== 'undefined') {
+    const local = localStorage.getItem(INSTAGRAM_ACTOR_KEY);
+    if (local) return local.trim();
+  }
+  return 'apify/instagram-reel-scraper';
+};
+
+export const setApifyInstagramActorId = (actorId: string): void => {
+  if (typeof window !== 'undefined') {
+    if (actorId) {
+      localStorage.setItem(INSTAGRAM_ACTOR_KEY, actorId.trim());
+    } else {
+      localStorage.removeItem(INSTAGRAM_ACTOR_KEY);
+    }
+  }
+};
+
+export interface ApifyTokenTestResult {
+  success: boolean;
+  username?: string;
+  plan?: string;
+  message: string;
+  status?: number;
+}
+
+export const testApifyTokenConnection = async (tokenInput?: string): Promise<ApifyTokenTestResult> => {
+  const token = (tokenInput !== undefined ? tokenInput : getApifyToken()).trim();
+  if (!token) {
+    return {
+      success: false,
+      message: 'Token is empty. Please enter your Apify API token.'
+    };
+  }
+
+  try {
+    const res = await fetch(`https://api.apify.com/v2/users/me?token=${encodeURIComponent(token)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const userData = data.data || {};
+      return {
+        success: true,
+        username: userData.username || userData.email || 'Apify User',
+        plan: userData.plan?.name || userData.subscription?.plan || 'Active Plan',
+        message: `Token Valid! Connected as @${userData.username || 'user'}`
+      };
+    } else {
+      const errText = await res.text().catch(() => '');
+      if (res.status === 401 || res.status === 403) {
+        return {
+          success: false,
+          status: res.status,
+          message: `HTTP ${res.status} Forbidden: Invalid or expired Apify API Token. Verify key at console.apify.com`
+        };
+      }
+      return {
+        success: false,
+        status: res.status,
+        message: `Apify API Error (${res.status}): ${errText || res.statusText}`
+      };
+    }
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Connection Error: ${err.message || 'Failed to reach api.apify.com'}`
+    };
   }
 };
 
