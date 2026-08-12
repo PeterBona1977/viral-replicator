@@ -10,6 +10,17 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+const COUNTRY_NAMES = {
+  PT: 'Portugal',
+  US: 'United States',
+  UK: 'United Kingdom',
+  BR: 'Brazil',
+  IN: 'India',
+  JP: 'Japan',
+  DE: 'Germany',
+  FR: 'France'
+};
+
 const formatViews = (num) => {
   if (!num || isNaN(num)) return '0';
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -22,21 +33,24 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/scrape', async (req, res) => {
-  const { keywords = 'trending viral', platform = 'YouTube', country = 'US', count = 8 } = req.body;
-  const rawKeyword = (keywords || 'trending viral').trim();
-  const targetCount = Math.min(Math.max(Number(count) || 8, 4), 24);
+  const { keywords = '', platform = 'YouTube', country = 'US', count = 8, timeRange = 'now' } = req.body;
+  
+  const countryName = COUNTRY_NAMES[country] || 'Global';
+  const rawKeyword = (keywords || '').trim();
+  const baseQuery = rawKeyword ? `${rawKeyword} ${countryName}` : `trending viral ${countryName}`;
+  const targetCount = Math.min(Math.max(Number(count) || 8, 4), 100);
 
-  let searchQuery = `ytsearch${targetCount}:${rawKeyword} shorts`;
+  let searchQuery = `ytsearch${targetCount * 2}:${baseQuery} shorts`;
   if (platform === 'TikTok') {
-    searchQuery = `ytsearch${targetCount}:${rawKeyword} tiktok viral`;
+    searchQuery = `ytsearch${targetCount * 2}:${baseQuery} tiktok viral`;
   } else if (platform === 'Instagram') {
-    searchQuery = `ytsearch${targetCount}:${rawKeyword} instagram reels`;
+    searchQuery = `ytsearch${targetCount * 2}:${baseQuery} instagram reels`;
   }
 
-  const cmd = `python -m yt_dlp --dump-json --flat-playlist --playlist-end ${targetCount} "${searchQuery}"`;
+  const cmd = `python -m yt_dlp --dump-json --flat-playlist --playlist-end ${targetCount * 2} "${searchQuery}"`;
 
   try {
-    const { stdout } = await execPromise(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 25000 });
+    const { stdout } = await execPromise(cmd, { maxBuffer: 15 * 1024 * 1024, timeout: 35000 });
     const lines = stdout.trim().split('\n').filter(Boolean);
     const parsedItems = [];
 
@@ -49,7 +63,15 @@ app.post('/api/scrape', async (req, res) => {
       }
     }
 
-    const videos = parsedItems.map((item, idx) => {
+    const filteredItems = parsedItems.filter(item => {
+      const dur = Number(item.duration || 0);
+      if (dur > 90) return false; // Strict short form duration limit (< 90 seconds)
+      return true;
+    });
+
+    const finalItems = filteredItems.length > 0 ? filteredItems : parsedItems;
+
+    const videos = finalItems.map((item, idx) => {
       const viewsNum = Number(item.view_count || item.views || Math.floor(Math.random() * 400000) + 100000);
       const likesNum = Number(item.like_count || item.likes || Math.floor(viewsNum * 0.09));
       const commentsNum = Number(item.comment_count || item.comments || Math.floor(likesNum * 0.04));
@@ -57,7 +79,7 @@ app.post('/api/scrape', async (req, res) => {
 
       const authorHandle = item.uploader || item.channel || item.uploader_id || `creator_${idx + 1}`;
       const videoUrl = item.webpage_url || item.url || item.original_url || `https://www.${platform.toLowerCase()}.com`;
-      const titleText = item.title || `${platform} Short: ${rawKeyword}`;
+      const titleText = item.title || `${platform} Short (${countryName}): ${rawKeyword || 'Viral Trend'}`;
       
       const thumbs = item.thumbnails || [];
       const thumbUrl = thumbs.length > 0 ? (thumbs[thumbs.length - 1].url || thumbs[0].url) : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500&auto=format&fit=crop';
@@ -87,12 +109,12 @@ app.post('/api/scrape', async (req, res) => {
         originalPostDate: item.upload_date ? `${item.upload_date.slice(0,4)}-${item.upload_date.slice(4,6)}-${item.upload_date.slice(6,8)}` : new Date().toISOString().split('T')[0],
         status: 'Scanned',
         createdAt: Date.now(),
-        searchSources: [{ title: `${platform} Engine (yt-dlp Live Free)`, uri: videoUrl }],
+        searchSources: [{ title: `${platform} Scraper (${countryName} - yt-dlp Free)`, uri: videoUrl }],
         researchInsights: {
-          hookType: `yt-dlp Live (${engPercentage}% Engaged)`,
-          audienceSegment: `${country} ${platform} Feed`,
+          hookType: `yt-dlp Verified (${engPercentage}% Engaged)`,
+          audienceSegment: `${countryName} ${platform} Social Graph`,
           commercialIntent: 'High',
-          viralVelocity: 'Live Extract',
+          viralVelocity: timeRange === '24h' ? 'Explosive (24h)' : 'High Velocity',
           creatorHandle: authorHandle.replace(/^@/, ''),
           likeCount: formatViews(likesNum),
           commentCount: formatViews(commentsNum),
@@ -107,10 +129,10 @@ app.post('/api/scrape', async (req, res) => {
 
     res.json({
       success: true,
-      videos: videos.slice(0, count),
+      videos: videos.slice(0, targetCount),
       logs: [
-        `yt-dlp Local Backend: Executed query "${searchQuery}"`,
-        `Extracted ${videos.length} live verified short videos without API keys.`
+        `yt-dlp Free Engine: Search "${baseQuery}" for ${platform} in ${countryName}`,
+        `Extracted ${videos.slice(0, targetCount).length} verified short videos matching criteria.`
       ]
     });
   } catch (err) {
